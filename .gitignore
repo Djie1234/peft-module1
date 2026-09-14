@@ -21,6 +21,10 @@ sdist/
 var/
 wheels/
 *.egg-info/
+.idea/
+.coverage
+htmlcov/
+test-results/
 .installed.cfg
 *.egg
 MANIFEST
