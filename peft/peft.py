@@ -44,12 +44,70 @@ C0 = np.array([
     [1, 1, 0]
 ])
 
+
+def _validate_schedule_inputs(dag, computation_matrix, communication_matrix):
+    """Validate and normalize the public scheduling inputs."""
+    if not isinstance(dag, nx.DiGraph):
+        raise TypeError("dag must be a networkx.DiGraph")
+    if len(dag) == 0:
+        raise ValueError("dag must contain at least one task")
+    if not nx.is_directed_acyclic_graph(dag):
+        raise ValueError("dag must be a directed acyclic graph")
+
+    computation_matrix = np.asarray(computation_matrix, dtype=float)
+    communication_matrix = np.asarray(communication_matrix, dtype=float)
+
+    if computation_matrix.ndim != 2:
+        raise ValueError("computation_matrix must be a two-dimensional task-by-processor matrix")
+    if computation_matrix.shape[0] != len(dag):
+        raise ValueError(
+            "computation_matrix row count must equal the number of DAG tasks"
+        )
+    if computation_matrix.shape[1] == 0:
+        raise ValueError("computation_matrix must define at least one processor")
+    if not np.all(np.isfinite(computation_matrix)):
+        raise ValueError("computation_matrix values must be finite")
+    if np.any(computation_matrix < 0):
+        raise ValueError("computation_matrix values must be non-negative")
+
+    processor_count = computation_matrix.shape[1]
+    if communication_matrix.ndim != 2 or communication_matrix.shape[0] != communication_matrix.shape[1]:
+        raise ValueError("communication_matrix must be square")
+    if communication_matrix.shape[0] != processor_count:
+        raise ValueError(
+            "communication_matrix processor count must match computation_matrix columns"
+        )
+    if not np.all(np.isfinite(communication_matrix)):
+        raise ValueError("communication_matrix values must be finite")
+    if np.any(communication_matrix < 0):
+        raise ValueError("communication_matrix values must be non-negative")
+    if processor_count > 1:
+        off_diagonal = ~np.eye(processor_count, dtype=bool)
+        if np.any(communication_matrix[off_diagonal] <= 0):
+            raise ValueError(
+                "communication_matrix off-diagonal bandwidth values must be positive"
+            )
+
+    root_nodes = [node for node in dag if dag.in_degree(node) == 0]
+    terminal_nodes = [node for node in dag if dag.out_degree(node) == 0]
+    if len(root_nodes) != 1:
+        raise ValueError(f"Expected a single root node, found {len(root_nodes)}")
+    if len(terminal_nodes) != 1:
+        raise ValueError(f"Expected a single terminal node, found {len(terminal_nodes)}")
+
+    return computation_matrix, communication_matrix
+
 def schedule_dag(dag, computation_matrix=W0, communication_matrix=C0, proc_schedules=None, time_offset=0, relabel_nodes=True):
     """
     Given an application DAG and a set of matrices specifying PE bandwidth and (task, pe) execution times, computes the HEFT schedule
     of that DAG onto that set of PEs 
     """
-    if proc_schedules == None:
+    computation_matrix, communication_matrix = _validate_schedule_inputs(
+        dag, computation_matrix, communication_matrix
+    )
+    dag = dag.copy()
+
+    if proc_schedules is None:
         proc_schedules = {}
 
     _self = {
@@ -68,10 +126,17 @@ def schedule_dag(dag, computation_matrix=W0, communication_matrix=C0, proc_sched
         _self.numExistingJobs = _self.numExistingJobs + len(proc_schedules[proc])
 
     if relabel_nodes:
-        dag = nx.relabel_nodes(dag, dict(map(lambda node: (node, node+_self.numExistingJobs), list(dag.nodes()))))
+        dag = nx.convert_node_labels_to_integers(
+            dag, first_label=_self.numExistingJobs, ordering="default"
+        )
     else:
         #Negates any offsets that would have been needed had the jobs been relabeled
         _self.numExistingJobs = 0
+        expected_nodes = set(range(len(_self.computation_matrix)))
+        if set(dag.nodes()) != expected_nodes:
+            raise ValueError(
+                "With relabel_nodes=False, DAG nodes must be contiguous integers starting at 0"
+            )
 
     for i in range(_self.numExistingJobs + len(_self.computation_matrix)):
         _self.task_schedules[i] = None
@@ -85,7 +150,6 @@ def schedule_dag(dag, computation_matrix=W0, communication_matrix=C0, proc_sched
 
     # Nodes with no successors cause the any expression to be empty    
     root_node = [node for node in dag.nodes() if not any(True for _ in dag.predecessors(node))]
-    assert len(root_node) == 1, f"Expected a single root node, found {len(root_node)}"
     root_node = root_node[0]
     _self.root_node = root_node
 
@@ -151,12 +215,12 @@ def _compute_optimistic_cost_table(_self, dag):
     optimistic_cost_table = {}
 
     terminal_node = [node for node in dag.nodes() if not any(True for _ in dag.successors(node))]
-    assert len(terminal_node) == 1, f"Expected a single terminal node, found {len(terminal_node)}"
     terminal_node = terminal_node[0]
 
     diagonal_mask = np.ones(_self.communication_matrix.shape, dtype=bool)
     np.fill_diagonal(diagonal_mask, 0)
-    avgCommunicationCost = np.mean(_self.communication_matrix[diagonal_mask])
+    off_diagonal_costs = _self.communication_matrix[diagonal_mask]
+    avgCommunicationCost = np.mean(off_diagonal_costs) if off_diagonal_costs.size else 1.0
     for edge in dag.edges():
         logger.debug(f"Assigning {edge}'s average weight based on average communication cost. {float(dag.get_edge_data(*edge)['weight'])} => {float(dag.get_edge_data(*edge)['weight']) / avgCommunicationCost}")
         nx.set_edge_attributes(dag, { edge: float(dag.get_edge_data(*edge)['weight']) / avgCommunicationCost }, 'avgweight')
@@ -194,7 +258,7 @@ def _compute_optimistic_cost_table(_self, dag):
                 min_proc_oct = inf
                 for succ_proc in range(_self.computation_matrix.shape[1]):
                     successor_oct = optimistic_cost_table[succnode][succ_proc]
-                    successor_comp_cost = _self.computation_matrix[succnode][succ_proc]
+                    successor_comp_cost = _self.computation_matrix[succnode-_self.numExistingJobs][succ_proc]
                     successor_comm_cost = dag[node][succnode]['avgweight'] if curr_proc != succ_proc else 0
                     cost = successor_oct + successor_comp_cost + successor_comm_cost
                     logger.debug(f"If node {node} is on {curr_proc} and successor {succnode} is on {succ_proc}, the optimistic cost entry is {cost}")

@@ -1,0 +1,7 @@
+# Reproduced and verified on Python 3.11.2 / Windows 11.
+numpy==1.26.4
+matplotlib==3.7.5
+networkx==2.8.5
+pydot==1.4.1
+pytest==7.1.2
+pytest-cov==4.1.0
