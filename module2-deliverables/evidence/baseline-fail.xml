@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="20" time="0.969" timestamp="2026-09-20T15:01:59.986927" hostname="LAPTOP-LO7SN4BR"><testcase classname="tests_module2.test_module2" name="test_m2_tc_001_exact_fit_before_first_job" time="0.002"><failure message="AssertionError: assert ScheduleEvent...d=6.0, proc=0) == ScheduleEvent...end=2, proc=0)&#10;  &#10;  Omitting 2 identical items, use -vv to show&#10;  Differing attributes:&#10;  ['start', 'end']&#10;  &#10;  Drill down into differing attribute start:&#10;    start: 4 != 0...&#10;  &#10;  ...Full output truncated (5 lines hidden), use '-vv' to show">def test_m2_tc_001_exact_fit_before_first_job():
+        """A [0, 2] free slot must not be lost when duration equals 2."""
+        schedules, tasks, _ = schedule_dag(
+            one_task(), [[2]], [[0]], proc_schedules=existing(ScheduleEvent(0, 2, 4, 0))
+        )
+&gt;       assert tasks[1] == ScheduleEvent(1, 0, 2, 0)
+E       AssertionError: assert ScheduleEvent...d=6.0, proc=0) == ScheduleEvent...end=2, proc=0)
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Differing attributes:
+E         ['start', 'end']
+E         
+E         Drill down into differing attribute start:
+E           start: 4 != 0...
+E         
+E         ...Full output truncated (5 lines hidden), use '-vv' to show
+
+tests_module2\test_module2.py:31: AssertionError</failure></testcase><testcase classname="tests_module2.test_module2" name="test_m2_tc_002_fractional_exact_fit_before_first_job" time="0.001"><failure message="AssertionError: assert ScheduleEvent...d=4.5, proc=0) == ScheduleEvent...d=1.5, proc=0)&#10;  &#10;  Omitting 2 identical items, use -vv to show&#10;  Differing attributes:&#10;  ['start', 'end']&#10;  &#10;  Drill down into differing attribute start:&#10;    start: 3 != 0...&#10;  &#10;  ...Full output truncated (5 lines hidden), use '-vv' to show">def test_m2_tc_002_fractional_exact_fit_before_first_job():
+        _, tasks, _ = schedule_dag(
+            one_task(), [[1.5]], [[0]], proc_schedules=existing(ScheduleEvent(0, 1.5, 3, 0))
+        )
+&gt;       assert tasks[1] == ScheduleEvent(1, 0, 1.5, 0)
+E       AssertionError: assert ScheduleEvent...d=4.5, proc=0) == ScheduleEvent...d=1.5, proc=0)
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Differing attributes:
+E         ['start', 'end']
+E         
+E         Drill down into differing attribute start:
+E           start: 3 != 0...
+E         
+E         ...Full output truncated (5 lines hidden), use '-vv' to show
+
+tests_module2\test_module2.py:39: AssertionError</failure></testcase><testcase classname="tests_module2.test_module2" name="test_m2_tc_003_exact_fit_with_nonzero_offset" time="0.001"><failure message="AssertionError: assert ScheduleEvent...=11.0, proc=0) == ScheduleEvent...end=7, proc=0)&#10;  &#10;  Omitting 2 identical items, use -vv to show&#10;  Differing attributes:&#10;  ['start', 'end']&#10;  &#10;  Drill down into differing attribute start:&#10;    start: 9 != 5...&#10;  &#10;  ...Full output truncated (5 lines hidden), use '-vv' to show">def test_m2_tc_003_exact_fit_with_nonzero_offset():
+        _, tasks, _ = schedule_dag(
+            one_task(), [[2]], [[0]], proc_schedules=existing(ScheduleEvent(0, 7, 9, 0)), time_offset=5
+        )
+&gt;       assert tasks[1] == ScheduleEvent(1, 5, 7, 0)
+E       AssertionError: assert ScheduleEvent...=11.0, proc=0) == ScheduleEvent...end=7, proc=0)
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Differing attributes:
+E         ['start', 'end']
+E         
+E         Drill down into differing attribute start:
+E           start: 9 != 5...
+E         
+E         ...Full output truncated (5 lines hidden), use '-vv' to show
+
+tests_module2\test_module2.py:46: AssertionError</failure></testcase><testcase classname="tests_module2.test_module2" name="test_m2_tc_004_larger_initial_gap_is_used" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_005_smaller_initial_gap_is_skipped" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_006_exact_fit_between_two_jobs" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_007_offset_inside_internal_gap" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_008_existing_events_are_retained" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_009_predecessor_list_after_gap_insertion" time="0.001"><failure message="assert (0, 0, []) == (0, 1, [1])&#10;  At index 1 diff: 0 != 1&#10;  Use -v to get more diff">def test_m2_tc_009_predecessor_list_after_gap_insertion():
+        _, _, mapping = schedule_dag(
+            one_task(), [[2]], [[0]], proc_schedules=existing(ScheduleEvent(0, 2, 4, 0))
+        )
+&gt;       assert mapping[0] == (0, 1, [1])
+E       assert (0, 0, []) == (0, 1, [1])
+E         At index 1 diff: 0 != 1
+E         Use -v to get more diff
+
+tests_module2\test_module2.py:94: AssertionError</failure></testcase><testcase classname="tests_module2.test_module2" name="test_m2_tc_010_input_dag_attributes_are_unchanged" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_011_nonsquare_communication_matrix_rejected" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_012_nonfinite_communication_matrix_rejected" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_013_negative_communication_matrix_rejected" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_014_zero_processors_rejected" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_015_multiple_roots_rejected" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_016_multiple_terminals_rejected" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_017_noncontiguous_labels_without_relabel_rejected" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_018_wrong_graph_type_rejected" time="0.002" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_019_one_dimensional_computation_matrix_rejected" time="0.001" /><testcase classname="tests_module2.test_module2" name="test_m2_tc_020_tuple_matrices_are_normalized" time="0.001" /></testsuite></testsuites>
