@@ -302,7 +302,7 @@ def _compute_eft(_self, dag, node, proc):
     for idx in range(len(job_list)):
         prev_job = job_list[idx]
         if idx == 0:
-            if (prev_job.start - computation_time) - ready_time > 0:
+            if (prev_job.start - computation_time) - ready_time >= 0:
                 logger.debug(f"Found an insertion slot before the first job {prev_job} on processor {proc}")
                 job_start = ready_time
                 min_schedule = ScheduleEvent(node, job_start, job_start+computation_time, proc)
